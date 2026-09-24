@@ -1,0 +1,824 @@
+:root {
+    --navy: #FFF7F0;
+    --navy-light: #FFFFFF;
+    --navy-lighter: #FFF0E6;
+
+    --teal: #F48C6C;
+
+    --text: #544A45;
+    --muted: #7A6E67;
+    --subtle: #AA9E98;
+
+    --border: rgba(244, 140, 108, 0.22);
+    --shadow: 0 14px 32px rgba(194, 150, 118, 0.22);
+
+    /* Card sizing */
+    --card-width: 320px;
+    --card-gap: 1.5rem;
+}
+
+
+/* =========================
+   GLOBAL
+   ========================= */
+
+* {
+    box-sizing: border-box;
+}
+
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    margin: 0;
+    background: var(--navy);
+    color: var(--text);
+    font-family:
+        'Lucida Sans',
+        'Lucida Sans Regular',
+        'Lucida Grande',
+        'Lucida Sans Unicode',
+        Geneva,
+        Verdana,
+        sans-serif;
+    line-height: 1.2;
+    overflow-x: hidden;
+}
+
+body.modal-open {
+    overflow: hidden;
+}
+
+a,
+button {
+    font: inherit;
+}
+
+a:focus-visible,
+button:focus-visible {
+    outline: 3px solid var(--teal);
+    outline-offset: 4px;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+
+/* =========================
+   NAVIGATION
+   ========================= */
+
+.menu-toggle {
+    display: none;
+    padding: 0.2rem 0.5rem;
+    border: 0;
+    background: transparent;
+    color: var(--teal);
+    cursor: pointer;
+    font-size: 2rem;
+}
+
+
+/* =========================
+   PAGE LAYOUT
+   ========================= */
+
+.container {
+    width: min(1120px, 84%);
+    margin: 0 auto;
+}
+
+.section {
+    padding: 6rem 0;
+}
+
+.eyebrow {
+    margin-bottom: 0.8rem;
+    color: var(--teal);
+    font-size: 1rem;
+    letter-spacing: 0.11em;
+    text-transform: uppercase;
+}
+
+h1,
+h2,
+h3,
+p {
+    margin-top: 0;
+}
+
+h1 {
+    max-width: 900px;
+    margin-bottom: 1.25rem;
+    font-size: clamp(3rem, 7vw, 5.6rem);
+    line-height: 1.04;
+    letter-spacing: -0.04em;
+}
+
+h2 {
+    margin-bottom: 1rem;
+    font-size: clamp(2rem, 4vw, 3rem);
+    line-height: 1.15;
+}
+
+h3 {
+    line-height: 1.3;
+}
+
+.section-intro {
+    max-width: 750px;
+    margin-bottom: 2.5rem;
+    color: var(--subtle);
+    font-size: 1.05rem;
+}
+
+
+/* =========================
+   CARD GRID
+   ========================= */
+
+/*
+   Every grid column is exactly the same width as a card.
+   A new column is only added when enough space exists for
+   another complete card + the fixed gap.
+*/
+
+.areas-grid {
+    display: grid;
+    grid-template-columns:
+        repeat(auto-fit, var(--card-width));
+    justify-content: center;
+    gap: var(--card-gap);
+    width: 100%;
+}
+
+
+/* =========================
+   FLIP CARDS
+   ========================= */
+
+.area-card {
+    appearance: none;
+    position: relative;
+    display: block;
+
+    width: var(--card-width);
+
+    /*
+       Width : Height = 1.75 : 1
+       320px wide = ~182.9px tall
+    */
+    aspect-ratio: 1.75 / 1;
+
+    padding: 0;
+    border: 0;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--text);
+    cursor: pointer;
+    perspective: 1000px;
+    text-align: center;
+}
+
+.area-card-inner {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+
+    transform-style: preserve-3d;
+    transition: transform 0.45s ease;
+}
+
+.area-card.is-flipped .area-card-inner {
+    transform: rotateY(180deg);
+}
+
+.area-card-front,
+.area-card-back {
+    position: absolute;
+    inset: 0;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+    height: 100%;
+
+    padding: 0;
+    overflow: hidden;
+
+    border: 1px solid rgba(136, 146, 176, 0.18);
+    border-radius: 10px;
+
+    background: var(--navy-lighter);
+
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+
+    transition:
+        border-color 0.25s ease,
+        box-shadow 0.25s ease;
+}
+
+.area-card-back {
+    transform: rotateY(180deg);
+}
+
+.area-card:hover .area-card-inner,
+.area-card:focus-within .area-card-inner {
+    transform: rotateY(180deg);
+}
+
+.area-card:hover .area-card-front,
+.area-card:hover .area-card-back,
+.area-card:focus-visible .area-card-front,
+.area-card:focus-visible .area-card-back {
+    border-color: var(--border);
+    box-shadow: var(--shadow);
+}
+
+
+/* =========================
+   CARD IMAGES
+   ========================= */
+
+.card-image {
+    position: absolute;
+    inset: 0;
+
+    width: 100%;
+    height: 100%;
+
+    object-fit: contain;
+    object-position: center;
+}
+
+.card-image-placeholder {
+    position: absolute;
+    inset: 0;
+
+    display: grid;
+    place-items: center;
+
+    padding: 1rem;
+
+    background: var(--navy-lighter);
+    color: var(--muted);
+
+    text-align: center;
+    font-size: 0.82rem;
+    line-height: 1.4;
+}
+
+
+/* =========================
+   LOADING / EMPTY MESSAGE
+   ========================= */
+
+.load-message {
+    grid-column: 1 / -1;
+
+    padding: 1.5rem;
+
+    border: 1px solid var(--border);
+    border-radius: 10px;
+
+    background: var(--navy-light);
+    color: var(--muted);
+}
+
+
+/* =========================
+   FILTER CONTROLS
+   ========================= */
+
+.card-controls {
+    display: grid;
+    grid-template-columns:
+        repeat(4, minmax(0, 1fr)) auto;
+
+    gap: 0.85rem;
+    align-items: end;
+
+    margin: 0 0 2rem;
+    padding: 1rem;
+
+    border: 1px solid var(--border);
+    border-radius: 10px;
+
+    background: var(--navy-light);
+}
+
+.filter-control {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 0;
+}
+
+.filter-control label {
+    color: var(--muted);
+
+    font-size: 0.78rem;
+    font-weight: 700;
+
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.filter-control select,
+.clear-filters {
+    width: 100%;
+    min-height: 44px;
+
+    padding: 0.55rem 0.7rem;
+
+    border: 1px solid var(--border);
+    border-radius: 999px;
+
+    background: var(--navy);
+    color: var(--text);
+}
+
+.filter-control select {
+    cursor: pointer;
+}
+
+.clear-filters {
+    width: auto;
+    padding-inline: 1rem;
+
+    color: var(--teal);
+
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.clear-filters:hover {
+    background: var(--teal);
+    color: var(--navy);
+}
+
+.results-count {
+    margin: -1rem 0 1.25rem;
+
+    color: var(--subtle);
+    font-size: 0.9rem;
+}
+
+
+/* =========================
+   CARDS / MAP TOGGLE
+   ========================= */
+
+.view-toggle {
+    display: inline-flex;
+
+    gap: 0.35rem;
+
+    margin: 0 0 1.25rem;
+    padding: 0.3rem;
+
+    border: 1px solid var(--border);
+    border-radius: 999px;
+
+    background: var(--navy-light);
+}
+
+.view-toggle button {
+    padding: 0.55rem 1rem;
+
+    border: 0;
+    border-radius: 999px;
+
+    background: transparent;
+    color: var(--muted);
+
+    cursor: pointer;
+    font-weight: 700;
+}
+
+.view-toggle button.is-active {
+    background: var(--teal);
+    color: var(--navy);
+}
+
+
+/* =========================
+   MAP
+   ========================= */
+
+.map-shell {
+    overflow: hidden;
+
+    border: 1px solid var(--border);
+    border-radius: 18px;
+
+    background: var(--navy-light);
+    box-shadow: var(--shadow);
+}
+
+#map {
+    width: 100%;
+    height: min(68vh, 650px);
+    min-height: 420px;
+}
+
+.map-status {
+    margin: 0;
+    padding: 0.8rem 1rem;
+
+    border-top: 1px solid var(--border);
+
+    color: var(--subtle);
+    font-size: 0.88rem;
+}
+
+.map-popup {
+    width: 250px;
+}
+
+.map-popup-image-wrapper {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    width: 100%;
+    aspect-ratio: 1.75 / 1;
+
+    margin-bottom: 0.75rem;
+
+    overflow: hidden;
+
+    border-radius: 10px;
+
+    background: var(--navy-lighter);
+}
+
+.map-popup-image {
+    display: block;
+
+    width: auto;
+    max-width: 100%;
+
+    height: 100%;
+
+    object-fit: contain;
+    object-position: center;
+}
+
+.map-popup h3 {
+    margin: 0 0 0.35rem;
+    font-size: 1rem;
+}
+
+.map-popup p {
+    margin: 0 0 0.75rem;
+    color: var(--muted);
+}
+
+/* =========================
+   LEAFLET POPUPS
+   ========================= */
+
+.leaflet-popup-content-wrapper,
+.leaflet-popup-tip {
+    background: var(--navy-light);
+    color: var(--text);
+}
+
+.map-popup h3 {
+    margin: 0 0 0.35rem;
+    font-size: 1rem;
+}
+
+.map-popup p {
+    margin: 0 0 0.55rem;
+    color: var(--muted);
+}
+
+.map-popup button {
+    padding: 0.4rem 0.75rem;
+
+    border: 1px solid var(--teal);
+    border-radius: 999px;
+
+    background: transparent;
+    color: var(--teal);
+
+    cursor: pointer;
+}
+
+.map-popup button:hover {
+    background: var(--teal);
+    color: var(--navy);
+}
+
+
+/* =========================
+   LOCATION LINKS
+   ========================= */
+
+.location-link {
+    color: var(--teal);
+
+    font-weight: 600;
+    text-decoration: none;
+
+    border-bottom: 1px dashed currentColor;
+
+    transition: opacity 0.2s ease;
+}
+
+.location-link:hover {
+    opacity: 0.75;
+}
+
+.location-link::after {
+    content: " ↗";
+    font-size: 0.85em;
+}
+
+
+/* =========================
+   DIALOG
+   ========================= */
+
+dialog {
+    width: min(680px, calc(100% - 2rem));
+    max-height: calc(100vh - 3rem);
+
+    padding: 0;
+    overflow: auto;
+
+    border: 1px solid var(--border);
+    border-radius: 18px;
+
+    background: var(--navy-light);
+    color: var(--text);
+
+    box-shadow: var(--shadow);
+}
+
+dialog::backdrop {
+    background: rgba(84, 74, 69, 0.5);
+    backdrop-filter: blur(4px);
+}
+
+.dialog-content {
+    position: relative;
+    padding: 2.3rem;
+}
+
+.dialog-close {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+
+    width: 42px;
+    height: 42px;
+
+    border: 1px solid var(--border);
+    border-radius: 50%;
+
+    background: transparent;
+    color: var(--teal);
+
+    cursor: pointer;
+    font-size: 1.4rem;
+}
+
+.dialog-close:hover {
+    background: var(--teal);
+    color: var(--navy);
+}
+
+.dialog-label {
+    margin-bottom: 0.6rem;
+
+    color: var(--teal);
+
+    font-size: 0.8rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+.dialog-content h2 {
+    max-width: calc(100% - 3rem);
+    font-size: 1.8rem;
+}
+
+.dialog-content h3 {
+    margin: 1.5rem 0 0.4rem;
+
+    color: var(--muted);
+
+    font-size: 1rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+}
+
+.dialog-content p {
+    color: var(--subtle);
+}
+
+
+/* =========================
+   FADE-IN EFFECT
+   ========================= */
+
+.fade-in {
+    opacity: 0;
+    transform: translateY(18px);
+
+    transition:
+        opacity 0.7s ease-out,
+        transform 0.7s ease-out;
+}
+
+.fade-in.in-view {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+
+/* =========================
+   BACK TO TOP
+   ========================= */
+
+#backToTop {
+    position: fixed;
+
+    right: 1.5rem;
+    bottom: 1.5rem;
+
+    z-index: 900;
+
+    padding: 0.5rem 0.8rem;
+
+    border-radius: 999px;
+
+    background: var(--teal);
+    color: var(--navy);
+
+    font-weight: 700;
+    text-decoration: none;
+
+    opacity: 0;
+    pointer-events: none;
+
+    transition: opacity 0.25s ease;
+}
+
+#backToTop.visible {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+
+/* =========================
+   FOOTER
+   ========================= */
+
+footer {
+    padding: 2rem 1rem;
+
+    background: var(--navy);
+    color: var(--subtle);
+
+    text-align: center;
+}
+
+
+/* =========================
+   RESPONSIVE FILTERS
+   ========================= */
+
+@media (max-width: 900px) {
+
+    .card-controls {
+        grid-template-columns:
+            repeat(2, minmax(0, 1fr));
+    }
+
+    .clear-filters {
+        width: 100%;
+    }
+}
+
+
+/* =========================
+   MOBILE NAVIGATION
+   ========================= */
+
+@media (max-width: 760px) {
+
+    .navbar {
+        min-height: 64px;
+        padding: 0.65rem 1rem;
+    }
+
+    .menu-toggle {
+        display: block;
+    }
+
+    .navbar-links {
+        position: absolute;
+
+        top: 64px;
+        right: 0;
+
+        display: none;
+
+        width: 100%;
+
+        flex-direction: column;
+        gap: 0;
+
+        padding: 1rem;
+
+        background: var(--navy);
+
+        box-shadow:
+            0 12px 24px rgba(194, 150, 118, 0.25);
+    }
+
+    .navbar-links.active {
+        display: flex;
+    }
+
+    .navbar-links a {
+        width: 100%;
+        padding: 0.75rem;
+        text-align: center;
+    }
+
+    .container {
+        width: min(90%, 680px);
+    }
+}
+
+
+/* =========================
+   MOBILE
+   ========================= */
+
+@media (max-width: 560px) {
+
+    .section {
+        padding: 4.5rem 0;
+    }
+
+    /*
+       On very small screens the card may shrink,
+       but the 1.75:1 aspect ratio remains intact.
+    */
+
+    .areas-grid {
+        grid-template-columns: minmax(0, var(--card-width));
+    }
+
+    .area-card {
+        width: min(
+            var(--card-width),
+            calc(100vw - 3rem)
+        );
+    }
+
+    .card-controls {
+        grid-template-columns: 1fr;
+    }
+
+    #map {
+        min-height: 350px;
+    }
+}
+
+
+/* =========================
+   REDUCED MOTION
+   ========================= */
+
+@media (prefers-reduced-motion: reduce) {
+
+    html {
+        scroll-behavior: auto;
+    }
+
+    *,
+    *::before,
+    *::after {
+        transition-duration: 0.01ms !important;
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+    }
+
+    .fade-in {
+        opacity: 1;
+        transform: none;
+    }
+}

@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-TH67TECNHS"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){dataLayer.push(arguments);}
+        gtag('js', new Date());
+        gtag('config', 'G-TH67TECNHS');
+    </script>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="Interactive card collection loaded from an Excel workbook.">
+    <title>Card Collection</title>
+    <link rel="icon" type="image/png" href="images/favicon-32x32.png">
+
+    <link rel="stylesheet" href="styles_roj2.css">
+
+    <!-- Leaflet + marker clustering for the interactive map. -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css">
+
+    <!-- SheetJS reads card_details.xlsx directly in the browser. -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+</head>
+
+<body id="top">
+<nav class="navbar" aria-label="Portfolio navigation">
+    <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="navbar-links">☰</button>
+    <div class="navbar-links" id="navbar-links"></div>
+</nav>
+
+<main>
+    <section class="section" id="featured-work">
+        <div class="container">
+            <p class="eyebrow">MTL & Beyond</p>
+            <h2>Business Card Collection</h2>
+            <p class="section-intro">
+                Hover to see the back, click to see more info, or explore the map!
+            </p>
+
+            <div class="card-controls" id="card-controls" hidden>
+                <div class="filter-control">
+                    <label for="sort-by">Sort by</label>
+                    <select id="sort-by">
+                        <option value="name-asc">Name A–Z</option>
+                        <option value="name-desc">Name Z–A</option>
+                        <option value="colour-asc">Colour A–Z</option>
+                        <option value="colour-desc">Colour Z–A</option>
+                        <option value="type-asc">Type A–Z</option>
+                        <option value="type-desc">Type Z–A</option>
+                        <option value="location-asc">Location A–Z</option>
+                        <option value="location-desc">Location Z–A</option>
+                    </select>
+                </div>
+
+                <div class="filter-control">
+                    <label for="filter-colour">Colour</label>
+                    <select id="filter-colour"><option value="">All colours</option></select>
+                </div>
+
+                <div class="filter-control">
+                    <label for="filter-type">Type</label>
+                    <select id="filter-type"><option value="">All types</option></select>
+                </div>
+
+                <div class="filter-control">
+                    <label for="filter-location">Location</label>
+                    <select id="filter-location"><option value="">All locations</option></select>
+                </div>
+
+                <button class="clear-filters" id="clear-filters" type="button">Clear filters</button>
+            </div>
+
+            <div class="view-toggle" id="view-toggle" hidden aria-label="Choose collection view">
+                <button id="show-cards" class="is-active" type="button" aria-pressed="true">Cards</button>
+                <button id="show-map" type="button" aria-pressed="false">Map</button>
+            </div>
+
+            <p class="results-count" id="results-count" aria-live="polite"></p>
+
+            <div class="areas-grid" id="cards-grid" aria-live="polite">
+                <p class="load-message">Loading cards from card_details.xlsx…</p>
+            </div>
+
+            <div class="map-shell" id="map-shell" hidden>
+                <div id="map" aria-label="Interactive map of card locations"></div>
+                <p class="map-status" id="map-status" aria-live="polite"></p>
+            </div>
+        </div>
+    </section>
+</main>
+
+<div id="dialogs-container"></div>
+
+<a id="backToTop" href="#top" aria-label="Back to top">↑ Top</a>
+
+<footer>
+    <p>&copy; 2026 Andy Garnier. All rights reserved.</p>
+</footer>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+<script>
+    const EXCEL_FILE = 'card_details.xlsx';
+    const IMAGE_FOLDER = 'card_images';
+
+    const cardsGrid = document.getElementById('cards-grid');
+    const dialogsContainer = document.getElementById('dialogs-container');
+    const cardControls = document.getElementById('card-controls');
+    const sortBy = document.getElementById('sort-by');
+    const filterColour = document.getElementById('filter-colour');
+    const filterType = document.getElementById('filter-type');
+    const filterLocation = document.getElementById('filter-location');
+    const clearFilters = document.getElementById('clear-filters');
+    const resultsCount = document.getElementById('results-count');
+    const viewToggle = document.getElementById('view-toggle');
+    const showCardsButton = document.getElementById('show-cards');
+    const showMapButton = document.getElementById('show-map');
+    const mapShell = document.getElementById('map-shell');
+    const mapStatus = document.getElementById('map-status');
+
+    let allRows = [];
+    let currentRows = [];
+    let activeView = 'cards';
+    let map = null;
+    let markerCluster = null;
+    let mapRenderToken = 0;
+
+    const menuToggle = document.getElementById('menu-toggle');
+    const navbarLinks = document.getElementById('navbar-links');
+
+    menuToggle.addEventListener('click', () => {
+        const isOpen = navbarLinks.classList.toggle('active');
+        menuToggle.setAttribute('aria-expanded', String(isOpen));
+        menuToggle.setAttribute('aria-label', isOpen ? 'Close navigation' : 'Open navigation');
+    });
+
+    navbarLinks.querySelectorAll('a').forEach(link => {
+        link.addEventListener('click', () => {
+            navbarLinks.classList.remove('active');
+            menuToggle.setAttribute('aria-expanded', 'false');
+            menuToggle.setAttribute('aria-label', 'Open navigation');
+        });
+    });
+
+    function text(value) {
+        return value == null ? '' : String(value).trim();
+    }
+
+    function slugify(value, fallback) {
+        const slug = text(value)
+            .toLowerCase()
+            .replace(/[^a-z0-9_-]+/g, '_')
+            .replace(/^_+|_+$/g, '');
+        return slug || fallback;
+    }
+
+    function escapeHtml(value) {
+        return text(value)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function formatDate(value) {
+        if (!value) return '';
+
+        if (value instanceof Date && !Number.isNaN(value.getTime())) {
+            return new Intl.DateTimeFormat('en-CA', {
+                year: 'numeric',
+                month: 'long',
+            }).format(value);
+        }
+
+        if (typeof value === 'number') {
+            const parsed = XLSX.SSF.parse_date_code(value);
+            if (parsed) {
+                const date = new Date(parsed.y, parsed.m - 1, parsed.d);
+                return new Intl.DateTimeFormat('en-CA', {
+                    year: 'numeric',
+                    month: 'long',
+                }).format(date);
+            }
+        }
+
+        return text(value);
+    }
+
+    function imageMarkup(src, alt, placeholderText) {
+        return `
+            <img class="card-image" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"
+                 onerror="this.hidden=true; this.nextElementSibling.hidden=false;">
+            <span class="card-image-placeholder" hidden>${escapeHtml(placeholderText)}</span>
+        `;
+    }
+
+    function createCard(row, index) {
+        const fullName = text(row['Full name']) || `Card ${index + 1}`;
+        const shortName = slugify(row['Short name'], `card_${index + 1}`);
+        const dialogId = `dialog-${shortName}-${row.__rowNumber || index + 1}`;
+
+        // Image convention: images/<Short name>_front.jpeg and images/<Short name>_back.jpeg
+        const frontImage = `${IMAGE_FOLDER}/${shortName}_front.jpeg`;
+        const backImage = `${IMAGE_FOLDER}/${shortName}_back.jpeg`;
+
+        const card = document.createElement('button');
+        card.className = 'area-card fade-in';
+        card.type = 'button';
+        card.dataset.dialog = dialogId;
+        card.setAttribute('aria-label', `Open information about ${fullName}`);
+
+        card.innerHTML = `
+            <div class="area-card-inner">
+                <div class="area-card-front">
+                    ${imageMarkup(frontImage, `${fullName} front image`, `${fullName}\nFront image`)}
+                </div>
+                <div class="area-card-back">
+                    ${imageMarkup(backImage, `${fullName} alternate image`, `${fullName}\nBack image`)}
+                </div>
+            </div>
+        `;
+
+        return { card, dialogId, fullName };
+    }
+
+    function createDialog(row, dialogId, fullName) {
+        const type = text(row['Type']);
+        const fullLocation = text(row['Full location']);
+        const shortLocation = text(row['Short location']);
+        const date = formatDate(row['Date']);
+        const notes = text(row['Notes']);
+        const address = row["Full location"]?.trim() ?? "";
+        const mapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+        const dialog = document.createElement('dialog');
+        dialog.id = dialogId;
+        dialog.setAttribute('aria-labelledby', `${dialogId}-title`);
+        dialog.innerHTML = `
+            <div class="dialog-content">
+                <button class="dialog-close" type="button" aria-label="Close information">×</button>
+                <p class="dialog-label">${escapeHtml([shortLocation, date, type].filter(Boolean).join(' · '))}</p>
+                <h2 id="${dialogId}-title">${escapeHtml(fullName)}</h2>
+                
+                <h3>Notes</h3>
+                <p>${escapeHtml(notes) || '—'}</p>
+
+                <h3>Full location</h3>
+                <p>
+                    <a class="location-link"
+                    href="${mapsUrl}"
+                    target="_blank"
+                    rel="noopener noreferrer">
+                        ${address}
+                    </a>
+                </p>
+
+
+            </div>
+        `;
+        return dialog;
+    }
+
+    function bindDialog(dialog) {
+        const closeButton = dialog.querySelector('.dialog-close');
+        closeButton.addEventListener('click', () => dialog.close());
+
+        dialog.addEventListener('click', event => {
+            const rect = dialog.getBoundingClientRect();
+            const clickedOutside =
+                event.clientX < rect.left ||
+                event.clientX > rect.right ||
+                event.clientY < rect.top ||
+                event.clientY > rect.bottom;
+
+            if (clickedOutside) dialog.close();
+        });
+
+        dialog.addEventListener('close', () => {
+            document.body.classList.remove('modal-open');
+        });
+    }
+
+    function uniqueValues(rows, key) {
+        return [...new Set(rows.map(row => text(row[key])).filter(Boolean))]
+            .sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+    }
+
+    function populateSelect(select, values, allLabel) {
+        select.innerHTML = `<option value="">${allLabel}</option>`;
+        values.forEach(value => {
+            const option = document.createElement('option');
+            option.value = value;
+            option.textContent = value;
+            select.appendChild(option);
+        });
+    }
+
+    function setupControls(rows) {
+        populateSelect(filterColour, uniqueValues(rows, 'Colour'), 'All colours');
+        populateSelect(filterType, uniqueValues(rows, 'Type'), 'All types');
+        populateSelect(filterLocation, uniqueValues(rows, 'Short location'), 'All locations');
+        cardControls.hidden = false;
+    }
+
+    function getFilteredAndSortedRows() {
+        const colour = filterColour.value;
+        const type = filterType.value;
+        const location = filterLocation.value;
+
+        const filtered = allRows.filter(row => {
+            return (!colour || text(row['Colour']) === colour) &&
+                   (!type || text(row['Type']) === type) &&
+                   (!location || text(row['Short location']) === location);
+        });
+
+        const [field, direction] = sortBy.value.split('-');
+        const keyMap = {
+            name: 'Full name',
+            colour: 'Colour',
+            type: 'Type',
+            location: 'Short location'
+        };
+        const key = keyMap[field] || 'Full name';
+        const multiplier = direction === 'desc' ? -1 : 1;
+
+        return filtered.sort((a, b) =>
+            text(a[key]).localeCompare(text(b[key]), undefined, {
+                sensitivity: 'base',
+                numeric: true
+            }) * multiplier
+        );
+    }
+
+    function renderRows(rows) {
+        cardsGrid.innerHTML = '';
+        dialogsContainer.innerHTML = '';
+
+        if (!rows.length) {
+            cardsGrid.innerHTML = '<p class="load-message">No cards match the current filters.</p>';
+            resultsCount.textContent = `Showing 0 of ${allRows.length} cards`;
+            return;
+        }
+
+        resultsCount.textContent = `Showing ${rows.length} of ${allRows.length} card${allRows.length === 1 ? '' : 's'}`;
+
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) entry.target.classList.add('in-view');
+            });
+        }, { threshold: 0.08 });
+
+        rows.forEach((row, index) => {
+            const { card, dialogId, fullName } = createCard(row, index);
+            const dialog = createDialog(row, dialogId, fullName);
+
+            card.addEventListener('click', () => {
+                dialog.showModal();
+                document.body.classList.add('modal-open');
+            });
+
+            bindDialog(dialog);
+            cardsGrid.appendChild(card);
+            dialogsContainer.appendChild(dialog);
+            observer.observe(card);
+        });
+    }
+
+    function initMap() {
+        if (map) return;
+
+        map = L.map('map', {
+            scrollWheelZoom: true
+        }).setView([45.5, -73.6], 5);
+
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            maxZoom: 19,
+            attribution: '&copy; OpenStreetMap contributors'
+        }).addTo(map);
+
+        markerCluster = L.markerClusterGroup({
+            showCoverageOnHover: false,
+            maxClusterRadius: 52
+        });
+        map.addLayer(markerCluster);
+    }
+
+    function rowKey(row) {
+        return `${text(row['Full name'])}|${text(row['Full location'])}`;
+    }
+
+    function coordinatesFromRow(row) {
+        const lat = Number(row['Latitude']);
+        const lon = Number(row['Longitude']);
+
+        if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+        if (lat < -90 || lat > 90 || lon < -180 || lon > 180) return null;
+
+        return { lat, lon };
+    }
+
+    function openDialogForRow(row) {
+        const id = `dialog-${slugify(row['Short name'], 'card')}-${row.__rowNumber}`;
+        const dialog = document.getElementById(id);
+        if (dialog) {
+            dialog.showModal();
+            document.body.classList.add('modal-open');
+        }
+    }
+
+    async function renderMap(rows) {
+        initMap();
+        const token = ++mapRenderToken;
+        markerCluster.clearLayers();
+        mapStatus.textContent = rows.length ? 'Loading map locations…' : 'No locations match the current filters.';
+
+        if (!rows.length) return;
+
+        const bounds = [];
+        let mapped = 0;
+
+        for (let i = 0; i < rows.length; i++) {
+            if (token !== mapRenderToken) return;
+            const row = rows[i];
+            const coords = coordinatesFromRow(row);
+
+            if (!coords) continue;
+
+            mapped++;
+            bounds.push([coords.lat, coords.lon]);
+
+            const marker = L.marker([coords.lat, coords.lon]);
+
+            const fullName = text(row['Full name']);
+            const shortName = slugify(
+                row['Short name'],
+                `card_${row.__rowNumber}`
+            );
+
+            const frontImage =
+                `${IMAGE_FOLDER}/${shortName}_front.jpeg`;
+
+            const popup = document.createElement('div');
+            popup.className = 'map-popup';
+
+            popup.innerHTML = `
+                <div class="map-popup-image-wrapper">
+                    <img
+                        class="map-popup-image"
+                        src="${escapeHtml(frontImage)}"
+                        alt="${escapeHtml(fullName)} front image"
+                        onerror="this.parentElement.style.display='none';"
+                    >
+                </div>
+
+                <h3>${escapeHtml(fullName)}</h3>
+
+                <p>
+                    ${escapeHtml(
+                        [
+                            text(row['Type']),
+                            text(row['Short location'])
+                        ]
+                        .filter(Boolean)
+                        .join(' · ')
+                    )}
+                </p>
+
+                <button type="button">
+                    View details
+                </button>
+            `;
+
+            popup
+                .querySelector('button')
+                .addEventListener('click', () => {
+                    openDialogForRow(row);
+                });
+
+            marker.bindPopup(popup, {
+                maxWidth: 300
+            });
+            markerCluster.addLayer(marker);
+            mapStatus.textContent = `Mapped ${mapped} of ${rows.length} location${rows.length === 1 ? '' : 's'}…`;
+        }
+
+        if (bounds.length === 1) {
+            map.setView(bounds[0], 14);
+        } else if (bounds.length > 1) {
+            map.fitBounds(bounds, { padding: [35, 35], maxZoom: 14 });
+        }
+
+        mapStatus.textContent = mapped === rows.length
+            ? `Showing ${mapped} mapped location${mapped === 1 ? '' : 's'}.`
+            : `Showing ${mapped} of ${rows.length} locations. ${rows.length - mapped} ${rows.length - mapped === 1 ? 'row has' : 'rows have'} missing or invalid coordinates.`;
+    }
+
+    function setView(view) {
+        activeView = view;
+        const isMap = view === 'map';
+
+        // Make the two views mutually exclusive.
+        cardsGrid.hidden = isMap;
+        mapShell.hidden = !isMap;
+        cardsGrid.style.display = isMap ? 'none' : '';
+        mapShell.style.display = isMap ? '' : 'none';
+
+        showCardsButton.classList.toggle('is-active', !isMap);
+        showMapButton.classList.toggle('is-active', isMap);
+        showCardsButton.setAttribute('aria-pressed', String(!isMap));
+        showMapButton.setAttribute('aria-pressed', String(isMap));
+
+        if (isMap) {
+            initMap();
+            requestAnimationFrame(() => {
+                map.invalidateSize();
+                renderMap(currentRows);
+            });
+        }
+    }
+
+    function applyControls() {
+        currentRows = getFilteredAndSortedRows();
+        renderRows(currentRows);
+        if (activeView === 'map') renderMap(currentRows);
+    }
+
+    [sortBy, filterColour, filterType, filterLocation].forEach(control => {
+        control.addEventListener('change', applyControls);
+    });
+
+    showCardsButton.addEventListener('click', () => setView('cards'));
+    showMapButton.addEventListener('click', () => setView('map'));
+
+    clearFilters.addEventListener('click', () => {
+        sortBy.value = 'name-asc';
+        filterColour.value = '';
+        filterType.value = '';
+        filterLocation.value = '';
+        applyControls();
+    });
+
+    async function loadCardsFromExcel() {
+        try {
+            const response = await fetch(EXCEL_FILE, { cache: 'no-store' });
+            if (!response.ok) {
+                throw new Error(`Could not load ${EXCEL_FILE} (${response.status})`);
+            }
+
+            const arrayBuffer = await response.arrayBuffer();
+            const workbook = XLSX.read(arrayBuffer, {
+                type: 'array',
+                cellDates: true
+            });
+
+            const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+            const rows = XLSX.utils.sheet_to_json(worksheet, {
+                defval: '',
+                raw: true
+            });
+
+            allRows = rows
+                .filter(row => text(row['Full name']))
+                .map((row, index) => ({ ...row, __rowNumber: index + 1 }));
+
+            if (!allRows.length) {
+                cardsGrid.innerHTML = '<p class="load-message">No rows with a “Full name” value were found in the spreadsheet.</p>';
+                return;
+            }
+
+            setupControls(allRows);
+            viewToggle.hidden = false;
+            applyControls();
+        } catch (error) {
+            console.error(error);
+            cardsGrid.innerHTML = `
+                <div class="load-message">
+                    <strong>Could not load ${escapeHtml(EXCEL_FILE)}.</strong><br>
+                    Make sure the Excel file is in the same folder as this HTML file and view the site through a web server. Browsers usually block automatic Excel loading when an HTML file is opened directly with a <code>file://</code> address.
+                </div>
+            `;
+        }
+    }
+
+    const backToTopButton = document.getElementById('backToTop');
+    window.addEventListener('scroll', () => {
+        backToTopButton.classList.toggle('visible', window.scrollY > 450);
+    });
+
+    loadCardsFromExcel();
+</script>
+</body>
+</html>
