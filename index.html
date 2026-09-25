@@ -358,25 +358,33 @@
         rows.forEach((row, index) => {
             const { card, dialogId, fullName } = createCard(row, index);
             const dialog = createDialog(row, dialogId, fullName);
-
+            const inner = card.querySelector('.area-card-inner');
+            
             let startX = 0;
             let startY = 0;
             let swiped = false;
+            let flippedThisSwipe = false;
 
             card.addEventListener('touchstart', (e) => {
                 startX = e.touches[0].clientX;
                 startY = e.touches[0].clientY;
                 swiped = false;
+                flippedThisSwipe = false;
             }, { passive: true });
 
             card.addEventListener('touchmove', (e) => {
+
+                if (flippedThisSwipe) return;
+
                 const dx = e.touches[0].clientX - startX;
                 const dy = e.touches[0].clientY - startY;
 
-                if (Math.abs(dx) > 30 && Math.abs(dx) > Math.abs(dy)) {
-                    swiped = true;
+                if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
                     card.classList.toggle('is-flipped');
+                    swiped = true;
+                    flippedThisSwipe = true;
                 }
+
             }, { passive: true });
 
             card.addEventListener('click', (e) => {
@@ -385,11 +393,6 @@
                     return;
                 }
 
-                dialog.showModal();
-                document.body.classList.add('modal-open');
-            });
-
-            card.addEventListener('click', () => {
                 dialog.showModal();
                 document.body.classList.add('modal-open');
             });
