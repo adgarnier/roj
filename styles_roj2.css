@@ -228,11 +228,12 @@ h3 {
     transform: rotateY(180deg);
 }
 
-.area-card:hover .area-card-inner,
-.area-card:focus-within .area-card-inner {
-    transform: rotateY(180deg);
+@media (hover: hover) {
+    .area-card:hover .area-card-inner,
+    .area-card:focus-within .area-card-inner {
+        transform: rotateY(180deg);
+    }
 }
-
 .area-card:hover .area-card-front,
 .area-card:hover .area-card-back,
 .area-card:focus-visible .area-card-front,
