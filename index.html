@@ -195,9 +195,22 @@
 
     function imageMarkup(src, alt, placeholderText) {
         return `
-            <img class="card-image" src="${escapeHtml(src)}" alt="${escapeHtml(alt)}"
-                 onerror="this.hidden=true; this.nextElementSibling.hidden=false;">
-            <span class="card-image-placeholder" hidden>${escapeHtml(placeholderText)}</span>
+            <div class="card-image-loader">❤</div>
+
+            <img
+                class="card-image"
+                src="${escapeHtml(src)}"
+                alt="${escapeHtml(alt)}"
+                onload="this.previousElementSibling.hidden=true;"
+                onerror="
+                    this.previousElementSibling.hidden=true;
+                    this.hidden=true;
+                    this.nextElementSibling.hidden=false;
+                ">
+
+            <span class="card-image-placeholder" hidden>
+                ${escapeHtml(placeholderText)}
+            </span>
         `;
     }
 
